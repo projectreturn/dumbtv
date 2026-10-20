@@ -28,6 +28,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.GridLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -105,45 +106,65 @@ public final class Home extends Activity {
         final String kind;
         final TextView title;
         final HorizontalScrollView scroll;
-        final LinearLayout strip;
+        final View body;
+        final ViewGroup strip;
+        final boolean grid;
         List<Item> all = new ArrayList<>();
 
         Row(String kind, String name, LinearLayout parent) {
             this.kind = kind;
+            grid = Catalog.APPS.equals(kind);
             int edge = dp(56), bleed = dp(14);
             title = Ui.text(Home.this, 12, Ui.FAINT, Ui.MEDIUM);
             title.setText(name.toUpperCase(Locale.ROOT));
             title.setLetterSpacing(0.14f);
             title.setPadding(edge, dp(20), edge, dp(2));
-            strip = new LinearLayout(Home.this);
-            strip.setClipChildren(false);
-            strip.setClipToPadding(false);
-            strip.setPadding(bleed, dp(12), bleed, dp(8));
-            scroll = new HorizontalScrollView(Home.this) {
-                /** Keeps the focused tile centered, except near either end of the row. */
-                @Override
-                protected int computeScrollDeltaToGetChildRectOnScreen(Rect r) {
-                    if (getChildCount() == 0) return 0;
-                    int range = Math.max(0, getChildAt(0).getWidth() - (getWidth() - getPaddingLeft() - getPaddingRight()));
-                    int target = Math.max(0, Math.min(range, r.centerX() - getWidth() / 2));
-                    return target - getScrollX();
-                }
-            };
-            scroll.setFocusable(false);
-            scroll.setHorizontalScrollBarEnabled(false);
-            scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            scroll.setClipChildren(false);
-            scroll.setClipToPadding(false);
-            scroll.setPadding(edge - bleed, 0, edge - bleed, 0);
-            scroll.addView(strip, new FrameLayout.LayoutParams(WRAP, WRAP));
             parent.addView(title, new LinearLayout.LayoutParams(MATCH, WRAP));
-            parent.addView(scroll, new LinearLayout.LayoutParams(MATCH, WRAP));
+            if (grid) {
+                GridLayout tiles = new GridLayout(Home.this);
+                tiles.setColumnCount(appColumns());
+                tiles.setAlignmentMode(GridLayout.ALIGN_BOUNDS);
+                tiles.setUseDefaultMargins(false);
+                tiles.setClipChildren(false);
+                tiles.setClipToPadding(false);
+                tiles.setPadding(edge, dp(12), edge, dp(8));
+                strip = tiles;
+                body = tiles;
+                scroll = null;
+                parent.addView(body, new LinearLayout.LayoutParams(MATCH, WRAP));
+            } else {
+                LinearLayout tiles = new LinearLayout(Home.this);
+                tiles.setClipChildren(false);
+                tiles.setClipToPadding(false);
+                tiles.setPadding(bleed, dp(12), bleed, dp(8));
+                strip = tiles;
+                scroll = new HorizontalScrollView(Home.this) {
+                    /** Keeps the focused tile centered, except near either end of the row. */
+                    @Override
+                    protected int computeScrollDeltaToGetChildRectOnScreen(Rect r) {
+                        if (getChildCount() == 0) return 0;
+                        int range = Math.max(0, getChildAt(0).getWidth()
+                                - (getWidth() - getPaddingLeft() - getPaddingRight()));
+                        int target = Math.max(0, Math.min(range, r.centerX() - getWidth() / 2));
+                        return target - getScrollX();
+                    }
+                };
+                scroll.setFocusable(false);
+                scroll.setHorizontalScrollBarEnabled(false);
+                scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+                scroll.setClipChildren(false);
+                scroll.setClipToPadding(false);
+                scroll.setPadding(edge - bleed, 0, edge - bleed, 0);
+                scroll.addView(strip, new FrameLayout.LayoutParams(WRAP, WRAP));
+                body = scroll;
+                parent.addView(body, new LinearLayout.LayoutParams(MATCH, WRAP));
+            }
         }
 
         void setVisible(boolean on) {
             int v = on ? View.VISIBLE : View.GONE;
             title.setVisibility(v);
-            scroll.setVisibility(v);
+            body.setVisibility(v);
         }
     }
 
@@ -184,7 +205,7 @@ public final class Home extends Activity {
             loadApps(null);
             return;
         }
-        int fit = getResources().getDisplayMetrics().widthPixels / (cardSize()[0] + dp(18)) + 1;
+        int fit = appColumns() * 2;
         for (Item it : Catalog.visible(cfg, Catalog.APPS, apps.all)) {
             if (fit-- <= 0) break;
             Catalog.art(getPackageManager(), it);
@@ -270,7 +291,10 @@ public final class Home extends Activity {
                     shift(1);
                     break;
                 case KeyEvent.KEYCODE_DPAD_UP:
+                    if (moving.kind.equals(Catalog.APPS)) shift(-appColumns());
+                    break;
                 case KeyEvent.KEYCODE_DPAD_DOWN:
+                    if (moving.kind.equals(Catalog.APPS)) shift(appColumns());
                     break;
                 default:
                     stopMoving();
@@ -310,8 +334,8 @@ public final class Home extends Activity {
     private List<int[]> rowBlocks(View content) {
         List<int[]> rows = new ArrayList<>();
         for (Row row : new Row[] {apps, inputs}) {
-            if (row.scroll.getVisibility() != View.VISIBLE) continue;
-            rows.add(new int[] {topIn(row.title, content), topIn(row.scroll, content) + row.scroll.getHeight()});
+            if (row.body.getVisibility() != View.VISIBLE) continue;
+            rows.add(new int[] {topIn(row.title, content), topIn(row.body, content) + row.body.getHeight()});
         }
         return rows;
     }
@@ -439,13 +463,16 @@ public final class Home extends Activity {
     }
 
     /** The child of {@code strip} horizontally closest to {@code from}, or null when empty. */
-    private static View nearest(LinearLayout strip, View from) {
+    private static View nearest(ViewGroup strip, View from) {
         int[] at = new int[2];
         from.getLocationOnScreen(at);
         int x = at[0] + from.getWidth() / 2;
         View best = null;
         int bestGap = Integer.MAX_VALUE;
-        for (int i = 0; i < strip.getChildCount(); i++) {
+        int count = strip instanceof GridLayout
+                ? Math.min(((GridLayout) strip).getColumnCount(), strip.getChildCount())
+                : strip.getChildCount();
+        for (int i = 0; i < count; i++) {
             View c = strip.getChildAt(i);
             c.getLocationOnScreen(at);
             int gap = Math.abs(at[0] + c.getWidth() / 2 - x);
@@ -521,7 +548,8 @@ public final class Home extends Activity {
 
         boolean enabled = !Catalog.INPUTS.equals(row.kind) || "on".equals(cfg.get(Config.INPUTS));
         List<Item> shown = enabled ? Catalog.visible(cfg, row.kind, row.all) : new ArrayList<>();
-        int[] size = cardSize();
+        if (row.grid) ((GridLayout) row.strip).setColumnCount(appColumns());
+        int[] size = row.grid ? appCardSize() : cardSize();
         int w = size[0], h = Catalog.APPS.equals(row.kind) ? size[1] : Math.round(size[1] * 0.56f);
         String labels = cfg.get(Config.LABELS);
         int accent = cfg.accent();
@@ -533,9 +561,18 @@ public final class Home extends Activity {
                 menu((Tile) v);
                 return true;
             });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-            lp.rightMargin = dp(18);
-            row.strip.addView(t, lp);
+            if (row.grid) {
+                GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+                lp.width = WRAP;
+                lp.height = WRAP;
+                lp.rightMargin = index % appColumns() == appColumns() - 1 ? 0 : dp(18);
+                lp.bottomMargin = dp(16);
+                row.strip.addView(t, lp);
+            } else {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
+                lp.rightMargin = dp(18);
+                row.strip.addView(t, lp);
+            }
             if (it.id.equals(keep)) restore = index;
             index++;
             if (Catalog.APPS.equals(row.kind) && !it.artRequested) loadArt(it);
@@ -571,9 +608,30 @@ public final class Home extends Activity {
         }
     }
 
+    /** Grid density follows the existing tile-size preference. */
+    private int appColumns() {
+        switch (cfg.get(Config.TILES)) {
+            case "small":
+                return 6;
+            case "large":
+                return 4;
+            default:
+                return 5;
+        }
+    }
+
+    /** Fits a complete 16:9 app grid between the same side margins used by the header. */
+    private int[] appCardSize() {
+        int columns = appColumns();
+        int available = getResources().getDisplayMetrics().widthPixels - dp(112)
+                - dp(18) * (columns - 1);
+        int width = Math.max(dp(96), available / columns);
+        return new int[] {width, Math.round(width * 9f / 16f)};
+    }
+
     private void focusFirst() {
-        apps.scroll.scrollTo(0, 0);
-        inputs.scroll.scrollTo(0, 0);
+        if (apps.scroll != null) apps.scroll.scrollTo(0, 0);
+        if (inputs.scroll != null) inputs.scroll.scrollTo(0, 0);
         View first = apps.strip.getChildAt(0);
         if (first == null) first = inputs.strip.getChildAt(0);
         landed = apps.strip.getChildCount() > 0;
@@ -715,7 +773,7 @@ public final class Home extends Activity {
     }
 
     private void shift(int by) {
-        LinearLayout strip = (LinearLayout) moving.getParent();
+        ViewGroup strip = (ViewGroup) moving.getParent();
         int from = strip.indexOfChild(moving), to = from + by;
         if (to < 0 || to >= strip.getChildCount()) return;
         ViewGroup.LayoutParams lp = moving.getLayoutParams();
@@ -728,7 +786,7 @@ public final class Home extends Activity {
         Tile t = moving;
         moving = null;
         t.setMoving(false);
-        LinearLayout strip = (LinearLayout) t.getParent();
+        ViewGroup strip = (ViewGroup) t.getParent();
         if (strip == null) return;
         List<String> ids = new ArrayList<>();
         for (int i = 0; i < strip.getChildCount(); i++) ids.add(((Tile) strip.getChildAt(i)).item.id);
