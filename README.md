@@ -1,5 +1,9 @@
 # dumbtv
 
+> **Grid edition:** This fork displays launcher apps in a responsive multi-row
+> grid: 5 columns at the default tile size, 6 when small, and 4 when large.
+> It has been tested on Android TV 14 at 1080p UI resolution.
+
 Your TV should do what you paid for: your apps, your HDMI inputs, and nothing
 else. No ads from the TV itself, no watch tracking, no update you did not ask
 for. dumbtv applies that over ADB from another machine — **no root**, nothing
@@ -119,7 +123,7 @@ adb connect <tv-ip>:5555
 ```
 
 No Java or Android SDK needed: the APK comes from the
-[GitHub release](https://github.com/humblemuzzu/dumbtv/releases/latest), and its
+[GitHub release](https://github.com/projectreturn/dumbtv/releases/latest), and its
 SHA-256 is pinned in `launcher/install.sh`. `--build` builds it from source instead.
 Details, settings and how the HOME takeover works: `launcher/README.md`.
 
