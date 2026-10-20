@@ -9,7 +9,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # shellcheck disable=SC1091
 source version.env
-APK_URL=https://github.com/humblemuzzu/dumbtv/releases/download/launcher-v$VERSION/dumbtv-home.apk
+APK_URL=https://github.com/projectreturn/dumbtv/releases/download/launcher-v$VERSION/dumbtv-home.apk
 
 PKG=tv.dumbtv.home
 GUARD=$PKG/$PKG.Guard

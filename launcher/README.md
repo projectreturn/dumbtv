@@ -1,6 +1,8 @@
-# dumbtv home
+# dumbtv home — Grid edition
 
-A home screen for Fire TV that does one job: show your apps and your HDMI inputs.
+A home screen for Fire TV and Android TV that does one job: show your apps and
+your HDMI inputs. This fork displays apps in a multi-row grid instead of a
+single horizontal row.
 
 - **45 KB APK.** Plain Java and Android views: no AndroidX, Kotlin, Compose, Play
   Services or other libraries.
@@ -22,7 +24,7 @@ adb connect <tv-ip>:5555         # accept "Allow USB debugging?" on the TV
 ```
 
 That is all. The APK comes from this repo's
-[releases](https://github.com/humblemuzzu/dumbtv/releases/latest); the script
+[releases](https://github.com/projectreturn/dumbtv/releases/latest); the script
 refuses to install it if the checksum differs from the one pinned in
 `install.sh`. Prefer to install by hand? Download `dumbtv-home.apk` from the
 release and `adb install` it — but HOME only switches over after `install.sh`
@@ -74,6 +76,7 @@ update one with the other: `install.sh` says so and tells you to
 | OK | open the app, or switch to the input |
 | Hold OK, or ☰ Menu | Move, Rename, Hide, App info |
 | Move mode | ◀ ▶ moves the tile, any other key drops it |
+| Move mode in the app grid | ◀ ▶ ▲ ▼ moves the tile |
 | Up from the top row | Options and Settings |
 | Back on the home screen | jump to the first tile |
 | Hold HOME | Fire OS quick menu (Amazon's, unchanged) |
@@ -177,7 +180,7 @@ until another app is opened.
 
 | File | What it is |
 |---|---|
-| `src/.../Home.java` | the home screen: clock, Apps row, Inputs row, tile menu, move mode |
+| `src/.../Home.java` | the home screen: clock, Apps grid, Inputs row, tile menu, move mode |
 | `src/.../Tile.java` | one tile, drawn in a single `onDraw`: banner or icon, focus ring |
 | `src/.../Catalog.java` | which apps and inputs exist, and which are shown in what order |
 | `src/.../Config.java` | the `home.conf` reader and writer |
