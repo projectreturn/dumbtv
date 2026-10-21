@@ -4,6 +4,67 @@
 > grid: 5 columns at the default tile size, 6 when small, and 4 when large.
 > It has been tested on Android TV 14 at 1080p UI resolution.
 
+## Grid edition — aktueller Stand
+
+Dieser Fork erweitert [humblemuzzu/dumbtv](https://github.com/humblemuzzu/dumbtv)
+um einen mehrzeiligen, per Fernbedienung bedienbaren Launcher. Die ursprünglichen
+TV-Werkzeuge bleiben enthalten; **für den Launcher allein ist kein Debloating nötig**.
+
+Aktuelle Veröffentlichung: **1.8** (App-Version `1.8-grid.10`, Android 9 oder neuer).
+[APK herunterladen](https://github.com/projectreturn/dumbtv/releases/tag/launcher-v1.8)
+· [Vollständiges Änderungsprotokoll](launcher/CHANGELOG.md)
+· [Launcher-Dokumentation / English guide](launcher/README.md)
+
+- App-Grid mit 4, 5 oder 6 Spalten je nach Kachelgröße.
+- Feste Uhrzeit und Datum; das Grid scrollt darunter mit weichem Übergang.
+- Geschmeidiges Scrollen und sanft eingeblendeter Auswahlrahmen an jeder Kachel.
+- Links/rechts wechselt am Zeilenende zur nächsten bzw. vorherigen Zeile.
+- Letzte App-/Eingangsauswahl wird bei Rückkehr wiederhergestellt.
+- Zahnrad für Systemeinstellungen, Pinsel für Gestaltung und Launcher-Optionen.
+- Verschieben von Apps in alle vier Richtungen; Umbenennen und Ausblenden.
+- Einstellbare TV-Taste und optionaler Fernbedienungsdienst für systemweit
+  empfangene Zahnrad-/TV-Tastensignale, soweit das Gerät sie weiterleitet.
+- Lokale Hintergrundbilder aus internem Speicher oder USB, mit Abdunklung und
+  Bildwechsel; keine Online-Bildquelle und kein Internetzugriff.
+- Deutsch, Englisch oder Systemsprache, unabhängig von Androids Spracheinstellung.
+
+### Kurzbedienung
+
+Von der obersten App-Reihe nach oben gehen: **Pinsel = Gestaltung**, **Zahnrad =
+Systemeinstellungen**. OK startet eine App; langes OK oder die Menütaste öffnet
+das Kachelmenü. Zurück auf dem Startbildschirm wählt ausdrücklich die erste Kachel.
+
+**Bilder:** Eigene JPG/JPEG-, PNG- oder WebP-Dateien z. B. nach `Pictures` kopieren.
+Dann **Pinsel → Bilderordner auswählen → Interner Speicher → Pictures → Auswählen**.
+Den angefragten Lesezugriff erlauben. Bilder müssen direkt im gewählten Ordner
+liegen; Unterordner werden nicht durchsucht. **Bild abdunkeln**, **Hintergrundwechsel**
+und **Nächstes Hintergrundbild** steuern die Darstellung. Der Launcher verändert
+keine Bilddateien. Googles Ambient-Bilder werden nicht automatisch übernommen;
+Fotos sind nicht im APK oder Repository enthalten.
+
+**Sprache:** **Pinsel → Sprache → Systemsprache / Deutsch / English**. Systemsprache
+verwendet Deutsch bei deutscher Gerätesprache, sonst Englisch. App-Namen und
+Androids Systemeinstellungen bleiben unverändert.
+
+**Fernbedienung:** Unter **Pinsel → TV-Taste: App auswählen** die Ziel-App festlegen.
+Falls Android die Sondertasten vor dem Launcher abfängt, den optionalen Dienst
+**dumbtv Fernbedienung** über den entsprechenden Gestaltungseintrag in den
+Bedienungshilfen aktivieren. Er liest keine Bildschirminhalte und lässt sich dort
+jederzeit abschalten. Die tatsächlich gelieferten Tastencodes sind geräteabhängig.
+
+**Datenschutz und Leistung:** Rund 61 KiB APK, Java und native Android-Ansichten,
+keine zusätzlichen Bibliotheken, Werbung, Konten, Telemetrie oder Update-Abfragen.
+Der Bilderordner benötigt optionalen Lesezugriff; keine Schreib- oder
+All-Dateien-Berechtigung. Die unten genannten historischen Leistungswerte des
+ursprünglichen Launchers sind keine neuen Messungen der Grid edition.
+
+**Update:** APK aus diesem Fork als Update installieren, ohne die bestehende App
+zu deinstallieren oder ihre Daten zu löschen. Android akzeptiert Updates nur mit
+demselben Signaturschlüssel. Eigene Builds können daher nicht ohne Weiteres die
+veröffentlichte APK ersetzen.
+
+## Original project and TV tools
+
 Your TV should do what you paid for: your apps, your HDMI inputs, and nothing
 else. No ads from the TV itself, no watch tracking, no update you did not ask
 for. dumbtv applies that over ADB from another machine — **no root**, nothing
@@ -99,17 +160,18 @@ work).
 | Protected packages | The handful Amazon refuses to disable get their background execution and background data removed instead. |
 | Settings | Ad tracking limited, interest-based ads off, app/device usage reporting off, wake word and voice off, promo autoplay off. |
 | DNS | personalDNSfilter runs on the TV: Amazon telemetry, Alexa endpoints and the OTA servers answer `127.0.0.1`. YouTube and the app store still resolve. |
-| Launcher | [dumbtv home](launcher/README.md), this repo's own launcher, replaces Amazon's home screen — no promo tiles, no sponsored rows. 45 KB, open source, no permissions on Fire OS 7/8. |
+| Launcher | [dumbtv home](launcher/README.md), this repo's own launcher, replaces Amazon's home screen — no promo tiles, no sponsored rows. Grid edition: about 61 KiB, open source, no internet permission; optional read access for local pictures. |
 
 Every step is reversible with `scripts/restore.sh`.
 
 ## The launcher
 
 `launcher/` is a home screen written for this repo: your apps, your HDMI inputs,
-a clock, and nothing else. Plain Java with no libraries, and **no internet
-permission** — it cannot phone home even if it wanted to. On Fire OS 7/8 it requests
-no permissions at all; on Fire OS 6 it asks for usage access, boot and task order,
-which its HOME keeper needs there. HOME lands on it in about 0.2 s, with no flash of Amazon's home.
+a clock, and local wallpapers. Plain Java with no libraries, and **no internet
+permission**. The Grid edition declares read access for its optional picture-folder
+browser. Legacy Fire OS 6 Keeper permissions are restricted to SDK 27 and below;
+the current release requires Android 9 or newer. The original launcher measured
+about 0.2 s to HOME on its Fire OS test device; this is not a Grid edition benchmark.
 
 It replaced Projectivy, which this repo used to install: Projectivy is closed
 source and asks for the advertising ID, ad attribution, install referrer,
@@ -182,6 +244,7 @@ Every script takes `--dry-run` to print its commands without running them, and
 ## Documentation
 
 - `launcher/README.md` — the launcher: install, remote controls, settings file, HOME takeover
+- `launcher/CHANGELOG.md` — Grid edition feature history, fixes and verification scope
 - `docs/HOW-IT-WORKS.md` — the five mechanisms and why each is needed
 - `docs/GOTCHAS.md` — everything that went wrong while building this
 - `docs/OTHER-TVS.md` — which TVs can be opened, which cannot, and what is being worked on

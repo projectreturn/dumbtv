@@ -4,13 +4,14 @@ A home screen for Fire TV and Android TV that does one job: show your apps and
 your HDMI inputs. This fork displays apps in a multi-row grid instead of a
 single horizontal row.
 
-The current local grid build adds a per-card selection ring with a gentle fade
-(160 ms), animated focus-driven scrolling (240 ms), German launcher menus and
+The published 1.8 Grid edition (`1.8-grid.10`, Android 9+) adds a per-card selection
+ring with a gentle fade (160 ms), animated focus-driven scrolling (240 ms), German launcher menus and
 vector-drawn brush/settings buttons. The redundant Apps heading is removed, and
 the fixed clock/date header fades softly into the grid. Focus and app launching
 remain immediate, including repeated remote presses. No extra libraries or network
-permissions are added. Device screenshots can show missing unchanged regions;
-the owner confirmed that all content stays visible on the physical TV.
+permissions are added. See the [change history](CHANGELOG.md) for the complete
+feature and verification summary, and the [German quick guide](../README.md#kurzbedienung)
+for on-TV menu paths.
 Left/right follows the full app order across row boundaries; the first and last
 apps are stops rather than wrapping around the entire grid. Header icons can grow
 on focus without their highlight being clipped by the header's padding.
@@ -41,12 +42,13 @@ The preference is launcher-local: menus, dialogs and the date update on return;
 Android's system language and app names are not changed. Translations are offline
 and add no permissions or background services.
 
-- **61 KB APK.** Plain Java and Android views: no AndroidX, Kotlin, Compose, Play
+- **About 61 KiB APK.** Plain Java and Android views: no AndroidX, Kotlin, Compose, Play
   Services or other libraries.
 - **No network.** It has no `INTERNET` permission, so Android blocks it from
   opening any network connection. The APK declares usage access, reorder-tasks
   and boot-completed with `android:maxSdkVersion="27"`: Fire OS 6 requests them
-  for the Keeper described below, Fire OS 7/8 does not. Check it yourself:
+  in the legacy Keeper implementation described below, not on Fire OS 7/8.
+  The published APK requires Android 9+. Check it yourself:
   `aapt2 dump permissions build/dumbtv-home.apk`.
 - **Read-only local pictures.** Optional storage access supports the folder browser;
   there is no storage-write or all-files-management permission.
@@ -54,8 +56,9 @@ and add no permissions or background services.
 
 ## Install (no Java, no SDK)
 
-You need `adb` and a TV with ADB debugging on (Settings → My Fire TV → About →
-click the device name 7 times, then Developer Options → ADB debugging).
+You need `adb`, Android 9 or newer, and a TV with ADB debugging on. On Fire TV:
+Settings → My Fire TV → About → click the device name 7 times, then Developer
+Options → ADB debugging.
 
 ```sh
 adb connect <tv-ip>:5555         # accept "Allow USB debugging?" on the TV
@@ -71,6 +74,15 @@ release and `adb install` it — but HOME only switches over after `install.sh`
 accessibility service and alarm setting on Fire OS 7/8, the UsageStats Keeper on
 Fire OS 6.
 
+The current APK does not install on Fire OS 6 / Android 7.1; the Keeper section
+below documents the retained legacy implementation, not current APK compatibility.
+For Android TV / Google TV, use the device-specific guidance in
+[OTHER-TVS.md](../docs/OTHER-TVS.md), not the Fire OS HOME-hook instructions.
+
+Update an existing installation signed by this fork with the new APK; do not
+uninstall it or clear its data merely to update. A differently signed custom
+build cannot update the release installation.
+
 Undo: `./launcher/install.sh --undo` gives HOME back to Amazon's launcher.
 
 ## Why not Projectivy
@@ -78,7 +90,8 @@ Undo: `./launcher/install.sh --undo` gives HOME back to Amazon's launcher.
 This repo used to install Projectivy. It was replaced because it is closed source
 and asks for far more than a home screen needs: the advertising ID, ad
 attribution, Play install referrer, internet, notification access and package
-install/delete. Measured on an Onida Fire TV Edition (Fire OS 7.7, 1.4 GB RAM):
+install/delete. Historical measurements of the original pre-Grid launcher on an
+Onida Fire TV Edition (Fire OS 7.7, 1.4 GB RAM), **not benchmarks of this fork**:
 
 | | dumbtv home | Projectivy 4.72 |
 |---|---|---|
@@ -114,9 +127,11 @@ update one with the other: `install.sh` says so and tells you to
 |---|---|
 | OK | open the app, or switch to the input |
 | Hold OK, or ☰ Menu | Move, Rename, Hide, App info |
-| Move mode | ◀ ▶ moves the tile, any other key drops it |
+| Move mode in the inputs row | ◀ ▶ moves the tile; OK drops it |
 | Move mode in the app grid | ◀ ▶ ▲ ▼ moves the tile |
-| Up from the top row | Options and Settings |
+| Up from the top row | Brush: Appearance / Gestaltung; gear: system Settings |
+| Settings/Notification shortcut | system settings (device-dependent key codes) |
+| TV/Guide shortcut | chosen app; opens the app chooser if none is assigned |
 | Back on the home screen | jump to the first tile |
 | Hold HOME | Fire OS quick menu (Amazon's, unchanged) |
 
@@ -127,9 +142,40 @@ steps to the next image. It also lists which apps and inputs appear on
 the home screen. Apps without a TV banner, like the Appstore or Downloads, start
 hidden; tick them there to add them.
 
+### Local pictures, step by step
+
+1. Copy your own pictures to a folder on internal or attached USB storage, for
+   example `Pictures`. No pictures are bundled or downloaded by the launcher.
+2. Open the brush → **Choose picture folder** (**Bilderordner auswählen**).
+3. Allow read access, choose the storage and folder, then **Select** (**Auswählen**).
+   The folder must contain supported pictures directly; subfolders are not scanned.
+4. Adjust **Image dim** and **Wallpaper rotation**, or use **Next wallpaper**.
+
+The picker also works on TVs without a usable Android document picker. Storage
+permission is broader than a single-folder grant; the launcher uses the selected
+folder read-only. Removing a USB drive or losing the folder shows the plain
+background instead. **Default folder** returns to the app-owned wallpapers folder.
+Google Ambient Mode is separate: its online photo collection is not a shared
+local folder and is not imported here. Use landscape pictures near your UI
+resolution (e.g. 1920 × 1080) to avoid unnecessarily large source files.
+
+### Language and remote shortcuts
+
+The brush → **Language / Sprache** offers **System language / Systemsprache**,
+**Deutsch**, and **English** only. System mode chooses German for German devices,
+English otherwise; it does not change the language of Android or installed apps.
+
+Choose a target in **TV button: choose app / TV-Taste: App auswählen**. To receive
+shortcut keys outside the launcher, explicitly enable **dumbtv remote control /
+dumbtv Fernbedienung** via the remote-service row in Appearance and Android
+Accessibility. Disable it in the same place. This service is separate from the
+legacy Fire OS HOME hook. It handles only Settings/Notification and TV/Guide key
+codes; manufacturer-reserved keys may still not reach it. No screen contents are
+retrieved and there is no network access.
+
 ## The settings file
 
-Everything is stored in one plain text file on the TV:
+Appearance, app order and shortcut preferences are stored in a plain text file:
 
 ```
 /sdcard/Android/data/tv.dumbtv.home/files/home.conf
@@ -152,6 +198,12 @@ background=black
 dim=40
 # off visit hourly daily daytime (visit = every return to the home screen)
 rotate=off
+# system de en (launcher language only)
+ui.language=system
+# optional absolute path; omit to use the app-owned wallpapers folder
+wallpaper.folder=/sdcard/Pictures
+# optional package to open with the TV button
+remote.tv.app=org.videolan.vlc
 apps.order=com.amazon.firetv.youtube,org.videolan.vlc
 apps.hide=org.videolan.vlc
 apps.show=com.amazon.venezia
@@ -161,8 +213,14 @@ name.com.droidlogic.tvinput/.services.Hdmi2InputService/HW6=PS5
 
 Comments go on their own line; anything after `=` is the value.
 
+The last focused tile is stored separately in Android's private preferences when
+the launcher pauses. It is restored on return or activity recreation; unavailable
+apps fall back to the first tile. Copying `home.conf` does not copy this state.
+
 Back it up with `adb pull`, restore it with `adb push`. Hand edits apply the next
-time the home screen comes back. For a wallpaper, push `wallpaper.jpg` (or `.png`)
+time the home screen comes back. For the default app-owned folder, omit
+`wallpaper.folder` (or use **Default folder** in the picker). Then push
+`wallpaper.jpg` (or `.png`)
 into the same folder and set `background=image`. For several, push them into a
 `wallpapers/` subfolder instead (`.jpg`, `.png` or `.webp`, shown in name order) and
 pick a rotation; while that folder has images, `wallpaper.jpg` is ignored.
@@ -224,6 +282,11 @@ until another app is opened.
 | `src/.../Catalog.java` | which apps and inputs exist, and which are shown in what order |
 | `src/.../Config.java` | the `home.conf` reader and writer |
 | `src/.../Options.java` | the settings screen |
+| `src/.../FolderPicker.java` | read-only internal/USB picture-folder browser |
+| `src/.../Language.java` | offline German/English translations and locale selection |
+| `src/.../HeaderButton.java` | vector-drawn brush and settings buttons |
+| `src/.../RemoteKeys.java` | shared shortcut handling and chosen TV app |
+| `src/.../RemoteService.java` | optional accessibility key filter; no screen retrieval |
 | `src/.../Guard.java` | the Fire OS 7/8 HOME takeover described above |
 | `src/.../Keeper.java` | the Fire OS 6 HOME takeover (UsageStats + moveTaskToFront) |
 | `src/.../BootReceiver.java` | restarts the Keeper after a boot or an update |
@@ -231,6 +294,7 @@ until another app is opened.
 | `install.sh` | download + checksum (or `--build`), install, HOME hook (Guard or Keeper), `--undo` |
 | `version.env` | the only place `VERSION` and `APK_SHA256` live; both scripts read it |
 | `release-check.sh` | proves version, built APK and GitHub release agree (`--local`, `--remote`, `--manifest`) |
+| `CHANGELOG.md` | Grid edition history, privacy notes and verification scope |
 
 ## Releasing
 
