@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">dumbtv</string>
-    <string name="guard_label">dumbtv home button</string>
-    <string name="guard_description">Sends the HOME button to the dumbtv home screen instead of Amazon\'s. It reads no screen content and has no internet access.</string>
+    <string name="remote_label">dumbtv Fernbedienung</string>
+    <string name="remote_description">Öffnet mit Zahnrad die Einstellungen und mit der TV-Taste die gewählte App, auch außerhalb des Startbildschirms. Der Dienst empfängt Tastenereignisse und reagiert nur auf Zahnrad/Einstellungen und TV (einschließlich des TV-Tastensignals Programmführer). Keine Bildschirminhalte, kein Internetzugriff.</string>
+    <string name="guard_label">dumbtv Home-Taste</string>
+    <string name="guard_description">Die Home-Taste öffnet dumbtv statt des Amazon-Startbildschirms. Liest keine Bildschirminhalte und hat keinen Internetzugriff.</string>
 </resources>

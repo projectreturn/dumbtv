@@ -5,6 +5,9 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <!-- Local wallpaper folder browser; read only, no network or write permission. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
     <!-- Fire OS 6 only: the Keeper reads the foreground package through UsageStats.
          maxSdkVersion keeps Fire OS 7/8 on the permission-free accessibility path. -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
@@ -49,6 +52,18 @@
             android:excludeFromRecents="true"
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode" />
+
+        <service
+            android:name=".RemoteService"
+            android:label="@string/remote_label"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice"
+                android:resource="@xml/remote" />
+        </service>
 
         <service
             android:name=".Keeper"

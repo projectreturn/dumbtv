@@ -4,13 +4,52 @@ A home screen for Fire TV and Android TV that does one job: show your apps and
 your HDMI inputs. This fork displays apps in a multi-row grid instead of a
 single horizontal row.
 
-- **45 KB APK.** Plain Java and Android views: no AndroidX, Kotlin, Compose, Play
+The current local grid build adds a per-card selection ring with a gentle fade
+(160 ms), animated focus-driven scrolling (240 ms), German launcher menus and
+vector-drawn brush/settings buttons. The redundant Apps heading is removed, and
+the fixed clock/date header fades softly into the grid. Focus and app launching
+remain immediate, including repeated remote presses. No extra libraries or network
+permissions are added. Device screenshots can show missing unchanged regions;
+the owner confirmed that all content stays visible on the physical TV.
+Left/right follows the full app order across row boundaries; the first and last
+apps are stops rather than wrapping around the entire grid. Header icons can grow
+on focus without their highlight being clipped by the header's padding.
+The optional **dumbtv Fernbedienung** accessibility service maps Settings/Notification
+to system settings and TV/Guide to the app chosen in **Gestaltung › TV-Taste: App
+auswählen**. It must be explicitly enabled by the owner, filters only those shortcut
+codes, and never retrieves screen content. Other key events pass through unchanged.
+Disable it at any time in system accessibility settings, reachable from Gestaltung.
+Move mode draws four direction arrows for apps (two for the horizontal inputs row).
+Google Ambient Mode's online gallery is not an accessible wallpaper folder; no
+network permission or online-image downloader is added to this launcher.
+The last focused app/input is restored on return and after recreating the home
+activity; its small private state is saved on pause, not on every remote press.
+Back on the home screen still explicitly returns to the first tile. Removed or
+hidden apps fall back safely to the first available tile.
+
+**Gestaltung › Bilderordner auswählen** opens a read-only TV-friendly folder browser
+for internal/USB storage, without requiring DocumentsUI or another app. It requests
+`READ_EXTERNAL_STORAGE` with owner consent. Select a folder containing JPG/JPEG,
+PNG or WebP files directly (subfolders are not scanned). Selection enables image
+backgrounds; the existing dim and rotation settings still apply. **Standardordner**
+restores the app-owned wallpapers folder. An absent/unplugged folder falls back to
+the plain background; no image files are copied or modified by the browser.
+
+**Gestaltung › Sprache** offers only system language, German and English. The system
+option uses German on German-language devices and English as the fallback otherwise.
+The preference is launcher-local: menus, dialogs and the date update on return;
+Android's system language and app names are not changed. Translations are offline
+and add no permissions or background services.
+
+- **61 KB APK.** Plain Java and Android views: no AndroidX, Kotlin, Compose, Play
   Services or other libraries.
 - **No network.** It has no `INTERNET` permission, so Android blocks it from
   opening any network connection. The APK declares usage access, reorder-tasks
   and boot-completed with `android:maxSdkVersion="27"`: Fire OS 6 requests them
   for the Keeper described below, Fire OS 7/8 does not. Check it yourself:
   `aapt2 dump permissions build/dumbtv-home.apk`.
+- **Read-only local pictures.** Optional storage access supports the folder browser;
+  there is no storage-write or all-files-management permission.
 - **No ads, no "recommended" rows, no account, no analytics, no update checks.**
 
 ## Install (no Java, no SDK)

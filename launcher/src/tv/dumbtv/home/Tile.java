@@ -1,6 +1,7 @@
 package tv.dumbtv.home;
 
 import android.content.Context;
+import android.animation.ValueAnimator;
 import android.graphics.Canvas;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
@@ -19,10 +20,10 @@ final class Tile extends View {
 
     final Item item;
     final String kind;
-    private final CharSequence title;
     private final int cardW, cardH, labelH;
-    private final boolean labelAlways, labelOnFocus;
-    private final float radius, stroke;
+    private final boolean app, labelAlways, labelOnFocus;
+    private final float radius, stroke, dotRadius, labelBaseline;
+    private final CharSequence innerTitle, underTitle;
     private final RectF card = new RectF();
     private final Path clip = new Path();
     private final Path arrow = new Path();
@@ -31,17 +32,19 @@ final class Tile extends View {
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint inner = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint under = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+    private final DashPathEffect movingDash;
     private boolean moving;
+    private float ringAlpha;
+    private final ValueAnimator ringMotion = new ValueAnimator();
 
     Tile(Context c, Item item, String kind, CharSequence title, int cardW, int cardH,
             String labels, int accent) {
         super(c);
         this.item = item;
         this.kind = kind;
-        this.title = title;
         this.cardW = cardW;
         this.cardH = cardH;
-        boolean app = Catalog.APPS.equals(kind);
+        app = Catalog.APPS.equals(kind);
         labelH = app ? Ui.dp(c, 26) : 0;
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
@@ -61,6 +64,17 @@ final class Tile extends View {
         under.setTypeface(Ui.MEDIUM);
         under.setTextAlign(Paint.Align.CENTER);
         under.setTextSize(Ui.dp(c, 13));
+        float room = cardW - Ui.dp(c, 16);
+        innerTitle = TextUtils.ellipsize(title, inner, room, TextUtils.TruncateAt.END);
+        underTitle = TextUtils.ellipsize(title, under, room, TextUtils.TruncateAt.END);
+        dotRadius = Ui.dp(c, 3.5f);
+        labelBaseline = cardH + labelH - Ui.dp(c, 6);
+        movingDash = new DashPathEffect(new float[] {stroke * 3, stroke * 2}, 0);
+        ringMotion.setDuration(160);
+        ringMotion.addUpdateListener(a -> {
+            ringAlpha = (float) a.getAnimatedValue();
+            invalidate();
+        });
 
         setFocusable(true);
         setClickable(true);
@@ -91,8 +105,17 @@ final class Tile extends View {
     protected void onFocusChanged(boolean focused, int direction, Rect previous) {
         super.onFocusChanged(focused, direction, previous);
         float s = focused ? FOCUS_SCALE : 1f;
-        animate().scaleX(s).scaleY(s).setDuration(110).start();
+        animate().scaleX(s).scaleY(s).setDuration(160).start();
+        ringMotion.cancel();
+        ringMotion.setFloatValues(ringAlpha, focused ? 1f : 0f);
+        ringMotion.start();
         invalidate();
+    }
+
+    @Override protected void onDetachedFromWindow() {
+        ringMotion.cancel();
+        animate().cancel();
+        super.onDetachedFromWindow();
     }
 
     @Override
@@ -109,32 +132,43 @@ final class Tile extends View {
             int left = (cardW - size) / 2, top = cardH * 12 / 100;
             icon.setBounds(left, top, left + size, top + size);
             icon.draw(canvas);
-            drawLine(canvas, inner, cardW / 2f, cardH - cardH * 13 / 100f);
-        } else if (!Catalog.APPS.equals(kind)) {
-            drawLine(canvas, inner, cardW / 2f, cardH / 2f - (inner.ascent() + inner.descent()) / 2);
+            drawLine(canvas, innerTitle, inner, cardW / 2f, cardH - cardH * 13 / 100f);
+        } else if (!app) {
+            drawLine(canvas, innerTitle, inner, cardW / 2f,
+                    cardH / 2f - (inner.ascent() + inner.descent()) / 2);
         }
         if (moving) canvas.drawColor(0x99000000);
         canvas.restore();
 
         if (item.state == TvInputManager.INPUT_STATE_CONNECTED) {
-            float r = Ui.dp(getContext(), 3.5f);
-            canvas.drawCircle(cardW - r * 3, r * 3, r, dot);
+            canvas.drawCircle(cardW - dotRadius * 3, dotRadius * 3, dotRadius, dot);
         }
-        if (isFocused() || moving) {
+        if (moving || ringAlpha > 0f) {
             float half = stroke / 2;
-            ring.setPathEffect(moving ? new DashPathEffect(new float[] {stroke * 3, stroke * 2}, 0) : null);
+            ring.setAlpha(moving ? 255 : Math.round(ringAlpha * 255));
+            ring.setPathEffect(moving ? movingDash : null);
             canvas.drawRoundRect(half, half, cardW - half, cardH - half, radius - half, radius - half, ring);
         }
         if (moving) drawArrows(canvas);
         boolean label = banner != null && (labelAlways || labelOnFocus && isFocused());
         if (labelH > 0 && label) {
-            drawLine(canvas, under, cardW / 2f, cardH + labelH - Ui.dp(getContext(), 6));
+            drawLine(canvas, underTitle, under, cardW / 2f, labelBaseline);
         }
     }
 
-    private void drawLine(Canvas canvas, TextPaint paint, float x, float baseline) {
-        float room = cardW - Ui.dp(getContext(), 16);
-        CharSequence s = TextUtils.ellipsize(title, paint, room, TextUtils.TruncateAt.END);
+    /** Final zoomed bounds, used to keep the selected card clear of the fixed header. */
+    void focusBounds(android.view.ViewGroup root, android.graphics.RectF out, int scrollY) {
+        Rect origin = new Rect(0, 0, 0, 0);
+        root.offsetDescendantRectToMyCoords(this, origin);
+        float left = origin.left + getPivotX() * (getScaleX() - 1f);
+        float top = origin.top + getPivotY() * (getScaleY() - 1f) + scrollY;
+        float dx = cardW * (FOCUS_SCALE - 1f) / 2;
+        float dy = cardH * (FOCUS_SCALE - 1f) / 2;
+        out.set(left - dx, top - dy, left + cardW + dx, top + cardH + dy);
+    }
+
+    private static void drawLine(Canvas canvas, CharSequence s, TextPaint paint, float x,
+            float baseline) {
         canvas.drawText(s, 0, s.length(), x, baseline, paint);
     }
 
@@ -150,6 +184,17 @@ final class Tile extends View {
         arrow.lineTo(cardW - pad - w, mid - h / 2);
         arrow.lineTo(cardW - pad - w, mid + h / 2);
         arrow.close();
+        if (app) {
+            float center = cardW / 2f;
+            arrow.moveTo(center, pad);
+            arrow.lineTo(center - h / 2, pad + w);
+            arrow.lineTo(center + h / 2, pad + w);
+            arrow.close();
+            arrow.moveTo(center, cardH - pad);
+            arrow.lineTo(center - h / 2, cardH - pad - w);
+            arrow.lineTo(center + h / 2, cardH - pad - w);
+            arrow.close();
+        }
         canvas.drawPath(arrow, inner);
     }
 }

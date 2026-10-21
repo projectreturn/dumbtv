@@ -13,9 +13,12 @@ import android.text.TextUtils;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Where tiles come from, and which of them the user wants on the home screen. */
 final class Catalog {
@@ -104,24 +107,32 @@ final class Catalog {
     /** The shown items, in the user's order; anything never moved keeps catalog order. */
     static List<Item> visible(Config cfg, String kind, List<Item> all) {
         List<String> order = cfg.list(kind + ".order");
+        Set<String> hidden = new HashSet<>(cfg.list(kind + ".hide"));
+        Set<String> explicitlyShown = APPS.equals(kind)
+                ? new HashSet<>(cfg.list("apps.show")) : Collections.emptySet();
+        Map<String, Integer> ranks = new HashMap<>();
+        for (int i = 0; i < order.size(); i++) {
+            if (!ranks.containsKey(order.get(i))) ranks.put(order.get(i), i);
+        }
         List<Item> out = new ArrayList<>();
         for (Item it : all) {
-            if (shown(cfg, kind, it)) out.add(it);
+            if (!hidden.contains(it.id)
+                    && (!APPS.equals(kind) || it.leanback || explicitlyShown.contains(it.id))) {
+                out.add(it);
+            }
         }
-        Collections.sort(out, (a, b) -> Integer.compare(rank(order, a.id), rank(order, b.id)));
+        Collections.sort(out, (a, b) -> Integer.compare(
+                ranks.containsKey(a.id) ? ranks.get(a.id) : Integer.MAX_VALUE,
+                ranks.containsKey(b.id) ? ranks.get(b.id) : Integer.MAX_VALUE));
         return out;
-    }
-
-    private static int rank(List<String> order, String id) {
-        int i = order.indexOf(id);
-        return i < 0 ? Integer.MAX_VALUE : i;
     }
 
     /** Saves {@code ids} as the new order, keeping the old positions of hidden items after them. */
     static void saveOrder(Config cfg, String kind, List<String> ids) {
         List<String> order = new ArrayList<>(ids);
+        Set<String> known = new HashSet<>(ids);
         for (String id : cfg.list(kind + ".order")) {
-            if (!order.contains(id)) order.add(id);
+            if (known.add(id)) order.add(id);
         }
         cfg.setList(kind + ".order", order);
     }

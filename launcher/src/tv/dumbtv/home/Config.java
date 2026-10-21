@@ -32,6 +32,8 @@ import java.util.TimeZone;
  */
 final class Config {
     static final String FILE = "home.conf";
+    static final String TV_APP = "remote.tv.app";
+    static final String WALLPAPER_DIR = "wallpaper.folder";
 
     static final class Choice {
         final String key, title;
@@ -52,31 +54,31 @@ final class Config {
         }
     }
 
-    static final Choice ACCENT = new Choice("accent", "Accent color", "blue",
+    static final Choice ACCENT = new Choice("accent", "Akzentfarbe", "blue",
             new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet"},
-            new String[] {"White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet"});
-    static final Choice TILES = new Choice("tiles", "Tile size", "medium",
+            new String[] {"Weiß", "Blau", "Türkis", "Grün", "Bernstein", "Rot", "Pink", "Violett"});
+    static final Choice TILES = new Choice("tiles", "Kachelgröße", "medium",
             new String[] {"small", "medium", "large"},
-            new String[] {"Small", "Medium", "Large"});
-    static final Choice LABELS = new Choice("labels", "App names", "focus",
+            new String[] {"Klein", "Mittel", "Groß"});
+    static final Choice LABELS = new Choice("labels", "App-Namen", "focus",
             new String[] {"focus", "always", "never"},
-            new String[] {"On focus", "Always", "Never"});
-    static final Choice CLOCK = new Choice("clock", "Clock", "auto",
+            new String[] {"Bei Auswahl", "Immer", "Nie"});
+    static final Choice CLOCK = new Choice("clock", "Uhrzeit", "auto",
             new String[] {"auto", "24h", "12h"},
-            new String[] {"System", "24-hour", "12-hour"});
-    static final Choice INPUTS = new Choice("inputs", "Inputs row", "on",
+            new String[] {"System", "24 Stunden", "12 Stunden"});
+    static final Choice INPUTS = new Choice("inputs", "Eingänge anzeigen", "on",
             new String[] {"on", "off"},
-            new String[] {"Shown", "Hidden"});
-    static final Choice BACKGROUND = new Choice("background", "Background", "black",
+            new String[] {"An", "Aus"});
+    static final Choice BACKGROUND = new Choice("background", "Hintergrund", "black",
             new String[] {"black", "graphite", "midnight", "image"},
-            new String[] {"Black", "Graphite", "Midnight", "Image file"});
-    static final Choice DIM = new Choice("dim", "Image dim", "40",
+            new String[] {"Schwarz", "Graphit", "Mitternacht", "Bilddatei"});
+    static final Choice DIM = new Choice("dim", "Bild abdunkeln", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
 
-    static final Choice ROTATE = new Choice("rotate", "Wallpaper rotation", "off",
+    static final Choice ROTATE = new Choice("rotate", "Hintergrundwechsel", "off",
             new String[] {"off", "visit", "hourly", "daily", "daytime"},
-            new String[] {"Off", "Every return home", "Every hour", "Every day", "By time of day"});
+            new String[] {"Aus", "Bei Rückkehr", "Stündlich", "Täglich", "Nach Tageszeit"});
 
     static final Choice[] CHOICES = {ACCENT, TILES, LABELS, CLOCK, INPUTS, BACKGROUND, DIM, ROTATE};
 
@@ -267,7 +269,7 @@ final class Config {
 
     List<File> wallpapers() {
         List<File> out = new ArrayList<>();
-        File[] files = new File(dir, WALLPAPERS).listFiles();
+        File[] files = wallpaperFolder().listFiles();
         if (files == null) return out;
         for (File f : files) {
             String n = f.getName().toLowerCase(Locale.ROOT);
@@ -278,6 +280,11 @@ final class Config {
         }
         Collections.sort(out);
         return out;
+    }
+
+    File wallpaperFolder() {
+        String selected = get(WALLPAPER_DIR, "");
+        return selected.isEmpty() ? new File(dir, WALLPAPERS) : new File(selected);
     }
 
     File wallpaper() {
@@ -302,6 +309,7 @@ final class Config {
             int n = pool.size();
             return pool.get((int) (((step + offset()) % n + n) % n));
         }
+        if (!get(WALLPAPER_DIR, "").isEmpty()) return null;
         for (String name : new String[] {"wallpaper.jpg", "wallpaper.png", "wallpaper.webp"}) {
             File f = new File(dir, name);
             if (f.isFile()) return f;

@@ -27,11 +27,14 @@ public final class Options extends Activity {
 
     private final List<Runnable> refreshers = new ArrayList<>();
     private Config cfg;
+    private FolderPicker folders;
+    private String language;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         cfg = Config.get(this);
+        language = Language.signature(this);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFocusable(false);
@@ -43,20 +46,45 @@ public final class Options extends Activity {
         scroll.addView(list);
 
         TextView title = Ui.text(this, 30, Ui.TEXT, Ui.LIGHT);
-        title.setText("Options");
+        title.setText(tr("Gestaltung"));
         title.setPadding(dp(16), 0, 0, dp(20));
         list.addView(title);
+        list.addView(action("Sprache", this::pickLanguage));
 
         for (Config.Choice c : Config.CHOICES) list.addView(choice(c));
-        list.addView(action("Next wallpaper", () -> {
+        list.addView(action("Bilderordner auswählen", this::pickWallpaperFolder));
+        TextView folder = label("");
+        folder.setTextSize(13);
+        folder.setTextColor(Ui.MUTED);
+        folder.setPadding(dp(16), 0, dp(16), dp(8));
+        list.addView(folder);
+        refreshers.add(() -> folder.setText(tr("Bilderordner: ") + cfg.wallpaperFolder().getPath()));
+        list.addView(action("Nächstes Hintergrundbild", () -> {
             cfg.nextWallpaper();
             refresh();
         }));
         list.addView(gap());
-        list.addView(action("Apps on home screen", () -> pick(Catalog.APPS)));
-        list.addView(action("Inputs on home screen", () -> pick(Catalog.INPUTS)));
-        list.addView(action("Reset order, names and hidden tiles", this::reset));
-        list.addView(action("Open Amazon's home screen", () -> {
+        list.addView(action("TV-Taste: App auswählen", this::pickTvApp));
+        list.addView(action("Fernbedienungsdienst aktivieren / deaktivieren", () -> {
+            new AlertDialog.Builder(this, Ui.DIALOG)
+                    .setTitle(tr("dumbtv Fernbedienung"))
+                    .setMessage(tr("Damit Zahnrad und TV auch außerhalb des Launchers funktionieren, kann der Dienst Tastenereignisse empfangen. Er reagiert nur auf diese Tasten, liest keine Bildschirminhalte und hat keinen Internetzugriff. In den Bedienungshilfen lässt er sich jederzeit abschalten."))
+                    .setPositiveButton(tr("Bedienungshilfen öffnen"), (dialog, which) -> {
+                        try {
+                            startActivity(new android.content.Intent(
+                                    android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                        } catch (android.content.ActivityNotFoundException | SecurityException e) {
+                            android.widget.Toast.makeText(this, tr("Bedienungshilfen bitte über die Systemeinstellungen öffnen."),
+                                    android.widget.Toast.LENGTH_LONG).show();
+                        }
+                    })
+                    .setNegativeButton(tr("Abbrechen"), null)
+                    .show();
+        }));
+        list.addView(action("Apps auf dem Startbildschirm", () -> pick(Catalog.APPS)));
+        list.addView(action("Eingänge auf dem Startbildschirm", () -> pick(Catalog.INPUTS)));
+        list.addView(action("Reihenfolge, Namen und ausgeblendete Kacheln zurücksetzen", this::reset));
+        list.addView(action("Amazon-Startbildschirm öffnen", () -> {
             Guard.amazon(this);
             finish();
         }));
@@ -64,25 +92,62 @@ public final class Options extends Activity {
         TextView about = Ui.text(this, 13, Ui.FAINT, Ui.MEDIUM);
         about.setLineSpacing(0, 1.4f);
         about.setPadding(dp(16), dp(28), 0, 0);
-        about.setText("Settings file: " + cfg.dir + "/" + Config.FILE
-                + "\nWallpaper: put wallpaper.jpg in that folder, then pick Background › Image file"
-                + "\nSeveral wallpapers: put them in " + Config.WALLPAPERS + "/ and pick a rotation"
-                + "\nNo internet permission. No tracking, no ads, no accounts.");
+        about.setText(tr("Einstellungsdatei: ") + cfg.dir + "/" + Config.FILE
+                + "\n" + tr("Bilderordner auswählen: JPG, PNG und WebP direkt im gewählten Ordner")
+                + "\n" + tr("Hintergrundwechsel bestimmt, wann das nächste Bild angezeigt wird.")
+                + "\n" + tr("Kein Internetzugriff. Kein Tracking, keine Werbung, keine Konten."));
         list.addView(about);
 
         setContentView(scroll);
         refresh();
+        if (getIntent().getBooleanExtra("choose_tv_app", false)) pickTvApp();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         cfg.refresh();
+        if (!Language.signature(this).equals(language)) { recreate(); return; }
         refresh();
+    }
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        return RemoteKeys.dispatch(this, event) || super.dispatchKeyEvent(event);
+    }
+
+    @Override protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        if (intent.getBooleanExtra("choose_tv_app", false)) pickTvApp();
     }
 
     private void refresh() {
         for (Runnable r : refreshers) r.run();
+    }
+
+    private void pickWallpaperFolder() {
+        if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] {android.Manifest.permission.READ_EXTERNAL_STORAGE}, 209);
+            return;
+        }
+        if (folders != null) folders.close();
+        folders = new FolderPicker(this, cfg, this::refresh);
+        folders.show();
+    }
+
+    @Override protected void onDestroy() {
+        if (folders != null) folders.close();
+        super.onDestroy();
+    }
+
+    @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
+        super.onRequestPermissionsResult(request, permissions, grants);
+        if (request != 209) return;
+        if (grants.length > 0 && grants[0] == android.content.pm.PackageManager.PERMISSION_GRANTED)
+            pickWallpaperFolder();
+        else android.widget.Toast.makeText(this,
+                tr("Ohne Lesezugriff kann kein eigener Bilderordner ausgewählt werden."),
+                android.widget.Toast.LENGTH_LONG).show();
     }
 
     private View choice(Config.Choice c) {
@@ -101,7 +166,7 @@ public final class Options extends Activity {
         });
         Runnable show = () -> {
             boolean focused = row.isFocused();
-            String text = c.name(cfg.get(c));
+            String text = tr(c.name(cfg.get(c)));
             if (c == Config.ACCENT) {
                 SpannableString s = new SpannableString("●  " + text);
                 s.setSpan(new ForegroundColorSpan(cfg.accent()), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -163,7 +228,7 @@ public final class Options extends Activity {
 
     private TextView label(String text) {
         TextView v = Ui.text(this, 16, Ui.TEXT, Ui.MEDIUM);
-        v.setText(text);
+        v.setText(tr(text));
         return v;
     }
 
@@ -184,23 +249,61 @@ public final class Options extends Activity {
             on[i] = Catalog.shown(cfg, kind, items.get(i));
         }
         new AlertDialog.Builder(this, Ui.DIALOG)
-                .setTitle(Catalog.APPS.equals(kind) ? "Apps on home screen" : "Inputs on home screen")
+                .setTitle(tr(Catalog.APPS.equals(kind) ? "Apps auf dem Startbildschirm" : "Eingänge auf dem Startbildschirm"))
                 .setMultiChoiceItems(names, on, (d, which, checked) ->
                         Catalog.setShown(cfg, kind, items.get(which), checked))
-                .setPositiveButton("Done", null)
+                .setPositiveButton(tr("Fertig"), null)
                 .show();
     }
 
     private void reset() {
         new AlertDialog.Builder(this, Ui.DIALOG)
-                .setTitle("Reset the home screen layout?")
-                .setMessage("Order, names and hidden tiles go back to default. Colors and sizes stay.")
-                .setPositiveButton("Reset", (d, w) -> cfg.removePrefix("name.", "apps.", "inputs."))
-                .setNegativeButton("Cancel", null)
+                .setTitle(tr("Startbildschirm zurücksetzen?"))
+                .setMessage(tr("Reihenfolge, Namen und ausgeblendete Kacheln werden zurückgesetzt. Farben und Größen bleiben erhalten."))
+                .setPositiveButton(tr("Zurücksetzen"), (d, w) -> cfg.removePrefix("name.", "apps.", "inputs."))
+                .setNegativeButton(tr("Abbrechen"), null)
+                .show();
+    }
+
+    private void pickTvApp() {
+        List<Item> items = Catalog.apps(this);
+        CharSequence[] names = new CharSequence[items.size() + 1];
+        names[0] = tr("Keine App / bei Tastendruck auswählen");
+        String current = cfg.get(Config.TV_APP, "");
+        int selected = 0;
+        for (int i = 0; i < items.size(); i++) {
+            names[i + 1] = Catalog.label(cfg, items.get(i));
+            if (items.get(i).id.equals(current)) selected = i + 1;
+        }
+        new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle(tr("App für die TV-Taste"))
+                .setSingleChoiceItems(names, selected, (dialog, which) -> {
+                    cfg.set(Config.TV_APP, which == 0 ? null : items.get(which - 1).id);
+                    dialog.dismiss();
+                })
+                .setNegativeButton(tr("Abbrechen"), null)
                 .show();
     }
 
     private int dp(float v) {
         return Ui.dp(this, v);
+    }
+
+    private String tr(String text) { return Language.text(this, text); }
+
+    private void pickLanguage() {
+        String current = Language.code(this);
+        int selected = Arrays.asList(Language.CODES).indexOf(current);
+        new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle(tr("Sprache"))
+                .setSingleChoiceItems(new String[] {tr("Systemsprache"), "Deutsch", "English"},
+                        selected, (dialog, which) -> {
+                            dialog.dismiss();
+                            if (!current.equals(Language.CODES[which])) {
+                                cfg.set(Language.KEY, Language.CODES[which]);
+                                recreate();
+                            }
+                        })
+                .setNegativeButton(tr("Abbrechen"), null).show();
     }
 }

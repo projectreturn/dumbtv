@@ -14,6 +14,7 @@ final class Item {
     int state = -1;
     volatile boolean artRequested;
     volatile Drawable banner, icon;
+    Tile tile;
 
     Item(String id, CharSequence label, Intent intent) {
         this.id = id;
